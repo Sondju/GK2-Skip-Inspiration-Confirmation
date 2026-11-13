@@ -39,86 +39,86 @@ namespace SkipInspirationConfirmation
 
             Log.LogInfo($"[{PluginName}] Standalone initialization finished successfully!");
         }
-    }
 
-    // --- ПАТЧ МГНОВЕННОЙ ПОКУПКИ ВДОХНОВЕНИЯ (РАБОТАЕТ ВСЕГДА БЕЗ ОШИБОК КОМПИЛЯЦИИ) ---
-    [HarmonyPatch(typeof(InspirationWidget), "OnPress")]
-    public class InspirationWidget_OnPress_Patch
-    {
-        private static int _lastProcessedFrame = -1;
-
-        [HarmonyPrefix]
-        public static bool Prefix(InspirationWidget __instance)
+        // --- ПАТЧ МГНОВЕННОЙ ПОКУПКИ ВДОХНОВЕНИЯ (РАБОТАЕТ ВСЕГДА БЕЗ ОШИБОК КОМПИЛЯЦИИ) ---
+        [HarmonyPatch(typeof(InspirationWidget), "OnPress")]
+        public class InspirationWidget_OnPress_Patch
         {
-            if (__instance == null) return true;
+            private static int _lastProcessedFrame = -1;
 
-            if (MainPlugin.Instance == null || !MainPlugin.Instance.ModEnabled.Value)
+            [HarmonyPrefix]
+            public static bool Prefix(InspirationWidget __instance)
             {
-                return true;
-            }
+                if (__instance == null) return true;
 
-            // Защита от повторов многоуровневых карточек в один кадр
-            if (Time.frameCount == _lastProcessedFrame)
-            {
-                return false;
-            }
-
-            try
-            {
-                _lastProcessedFrame = Time.frameCount;
-
-                if (__instance.IsBuyLocked) return true;
-
-                // Нативно используем найденное тобой публичное свойство
-                InspirationData inspData = __instance.InspirationData;
-
-                if (inspData != null)
-                {
-                    if (!inspData.IsCompleted || inspData.isAllLevelsBought)
-                    {
-                        return true;
-                    }
-
-                    // Читаем защищенное поле data через Harmony-рефлексию
-                    var dataField = AccessTools.Field(typeof(InspirationWidget), "data");
-                    if (dataField != null && dataField.GetValue(__instance) is InspirationWidgetData widgetData)
-                    {
-                        Action purchaseAction = widgetData.OnPress;
-
-                        if (purchaseAction != null)
-                        {
-                            MainPlugin.Log.LogInfo($"[FreeInspirations] Smart Bypass: Instantly executing OnPress action from data on frame: {_lastProcessedFrame}");
-
-                            // ИСПРАВЛЕНО: Вызываем приватный метод FinishFlyAndLock через рефлексию Harmony, убирая ошибку компиляции!
-                            var parentWidget = __instance.GetComponentInParent<CharInspirationPageWidget>();
-                            if (parentWidget != null)
-                            {
-                                var flyMethod = AccessTools.Method(typeof(InspirationWidget), "FinishFlyAndLock", new Type[] { typeof(CharInspirationPageWidget), typeof(string) });
-                                flyMethod?.Invoke(__instance, new object[] { parentWidget, inspData.id });
-                            }
-
-                            // Вызываем оригинальный метод покупки
-                            purchaseAction.Invoke();
-                        }
-                        else
-                        {
-                            MainPlugin.Log.LogError("[FreeInspirations] Critical: Public property 'OnPress' in InspirationWidgetData was null!");
-                            return true;
-                        }
-                    }
-                }
-                else
+                if (Instance == null || !Instance.ModEnabled.Value)
                 {
                     return true;
                 }
-            }
-            catch (Exception ex)
-            {
-                MainPlugin.Log.LogError($"[FreeInspirations] Error in native click executor: {ex.Message}");
-                return true;
-            }
 
-            return false; // Полностью блокируем ванильное диалоговое окно подтверждения покупки
+                // Защита от повторов многоуровневых карточек в один кадр
+                if (Time.frameCount == _lastProcessedFrame)
+                {
+                    return false;
+                }
+
+                try
+                {
+                    _lastProcessedFrame = Time.frameCount;
+
+                    if (__instance.IsBuyLocked) return true;
+
+                    // Нативно используем найденное тобой публичное свойство
+                    InspirationData inspData = __instance.InspirationData;
+
+                    if (inspData != null)
+                    {
+                        if (!inspData.IsCompleted || inspData.isAllLevelsBought)
+                        {
+                            return true;
+                        }
+
+                        // Читаем защищенное поле data через Harmony-рефлексию
+                        var dataField = AccessTools.Field(typeof(InspirationWidget), "data");
+                        if (dataField != null && dataField.GetValue(__instance) is InspirationWidgetData widgetData)
+                        {
+                            Action purchaseAction = widgetData.OnPress;
+
+                            if (purchaseAction != null)
+                            {
+                                Log.LogInfo($"[FreeInspirations] Smart Bypass: Instantly executing OnPress action from data on frame: {_lastProcessedFrame}");
+
+                                // ИСПРАВЛЕНО: Вызываем приватный метод FinishFlyAndLock через рефлексию Harmony, убирая ошибку компиляции!
+                                var parentWidget = __instance.GetComponentInParent<CharInspirationPageWidget>();
+                                if (parentWidget != null)
+                                {
+                                    var flyMethod = AccessTools.Method(typeof(InspirationWidget), "FinishFlyAndLock", new Type[] { typeof(CharInspirationPageWidget), typeof(string) });
+                                    flyMethod?.Invoke(__instance, new object[] { parentWidget, inspData.id });
+                                }
+
+                                // Вызываем оригинальный метод покупки
+                                purchaseAction.Invoke();
+                            }
+                            else
+                            {
+                                Log.LogError("[FreeInspirations] Critical: Public property 'OnPress' in InspirationWidgetData was null!");
+                                return true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.LogError($"[FreeInspirations] Error in native click executor: {ex.Message}");
+                    return true;
+                }
+
+                return false; // Полностью блокируем ванильное диалоговое окно подтверждения покупки
+            }
         }
     }
 }
