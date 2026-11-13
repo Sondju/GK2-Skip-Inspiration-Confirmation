@@ -3,7 +3,6 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using System;
-using System.Reflection;
 using UnityEngine;
 
 namespace SkipInspirationConfirmation
@@ -27,15 +26,33 @@ namespace SkipInspirationConfirmation
             Log = Logger;
 
             ModEnabled = Config.Bind(
-                "General",
-                "ModEnabled",
-                true,
+                "General", "ModEnabled", true,
                 "Completely disables confirmation windows when buying inspirations."
             );
 
-            // Накатываем автономный патч
+            // Если один патч отвалится, другие продолжат работу, вместо падения всего плагина
             var harmony = new Harmony(PluginGuid);
-            harmony.PatchAll(Assembly.GetExecutingAssembly());
+
+            var patchTypes = new[]
+            {
+                typeof(InspirationWidget_OnPress_Patch)
+            };
+
+            foreach (var pt in patchTypes)
+            {
+                try
+                {
+                    harmony.CreateClassProcessor(pt).Patch();
+                    Logger.LogMessage($"{pt.Name} correct patched");
+                }
+                catch (Exception e)
+                {
+                    Logger.LogError(
+                        $"{pt.Name} NOT patched: {e.GetType().Name}: {e.Message}\n" +
+                        $"Stack trace: {e.StackTrace}"
+                    );
+                }
+            }
 
             Log.LogInfo($"[{PluginName}] Standalone initialization finished successfully!");
         }
