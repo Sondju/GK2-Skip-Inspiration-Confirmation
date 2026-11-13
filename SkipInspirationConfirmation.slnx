@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SkipInspirationConfirmation\SkipInspirationConfirmation.csproj" />
+  <Project Path="SkipInspirationConfirmationFramework\SkipInspirationConfirmationFramework.csproj">
+    <BuildDependency Project="SkipInspirationConfirmation\SkipInspirationConfirmation.csproj" />
+  </Project>
+</Solution>
